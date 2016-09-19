@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 from __future__ import print_function
 
 import sys
@@ -9,6 +10,7 @@ import click
 
 import gettext
 import platform
+
 
 if platform.system().lower() == 'windows':
     import locale
@@ -40,14 +42,14 @@ def pythorce(ctx, verbose, root):
 
 
 # commands
-@pythorce.command(name="test-root", help=_('''
+@pythorce.command(name="collect-submodules", help=_('''
     ...later...
     '''))
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def test_root(config):
-    print(os.path.abspath('.'))
-    print(os.path.abspath(config["root"]))
+def collect_subs(config):
+    from scm import collect_subs
+    collect_subs(config)
 
 
 @pythorce.command(name="generator", help=_('''
@@ -55,11 +57,13 @@ def test_root(config):
     '''))
 @click.argument('start', nargs=1)
 @click.argument('end', default="HEAD")
+@click.option('--get-config-to', '-gct', help='...later', default=None)
+@click.option('--get-config-from', '-gcf', help='...later', default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def generator(config, start, end):
+def generator(config, start, end, get_config_to, get_config_from):
     from scm import generator
-    generator(config, start, end)
+    generator(config, start, end, get_config_to, get_config_from)
 
 
 @pythorce.command(name="history-repos-list", help=_('''
@@ -73,6 +77,17 @@ def generator(config, start, end):
 def history_repos_list(config, start, end, list_dst):
     from scm import history_repos_list
     history_repos_list(config, start, end, list_dst)
+
+
+@pythorce.command(name="create-config", help=_('''
+    ...later...
+    '''))
+@click.option('--config-dst', '-cd', help=_('file to save config'), default=None)
+@click.help_option('--help', '-h', help=_('Show this message and exit.'))
+@click.pass_obj
+def create_config(config, config_dst):
+    from scm import create_config
+    create_config(config, config_dst)
 
 
 @pythorce.command(help=_('''
@@ -113,7 +128,9 @@ def main():
     try:
         pythorce()
     except Exception as e:
-        print(_('Operation failed'))
+        print(u"args: {}".format(e.args))
+        print(u"message: {}".format(e.message))
+        print(u'Operation failed')
         return 1
 
 
