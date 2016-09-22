@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
+import os
 import git
 import time
 import codecs
@@ -27,58 +28,61 @@ class CommitInfo(object):
                                      author=get_author_name(self.email, commit.author.name), pre_path=pre_path))
 
 
-def generator(config, start_rev, end_rev, get_config_to=None, get_config_from=None):
-    if get_config_from is None:
-        config_content = None
+def get_default_files_path(part_name):
+    return os.path.join(".pythorce", "tmp_{}.dump".format(part_name))
+
+
+def dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
+    if dumped_submodules is None:
+        dumped_submodules = get_default_files_path("submodules")
+        dump_submodules(config, dumped_submodules)
+
+    with codecs.open(check_files(dumped_submodules), 'r', encoding='utf-8') as ss:
+        submodules_content = yaml.safe_load(ss)
+
+    if dumped_authors is None:
+        authors_content = None
     else:
-        with codecs.open(get_config_from, 'r', encoding="utf-8") as get_config:
-            config_content = yaml.safe_load(get_config)
+        with codecs.open(check_files(dumped_authors), 'r', encoding='utf-8') as authors:
+            authors_content = yaml.safe_load(authors)
 
     def get_author_name(email, def_name):
-        if config_content is None:
+        if authors_content is None or authors_content["authors"].get(email, None) is None:
             return def_name
-        new_name = config_content["authors"][email][0]
+        new_name = authors_content["authors"][email][0]
         try:
-            new_name = get_author_name(new_name, def_name)
+            new_name = authors_content(new_name, def_name)
         except Exception:
             pass
         return new_name
 
     def is_includes_repo(repo):
-        if config_content is None:
+        if submodules_content is None:
             return True
-        if repo.name in config_content["submodules"]["excludes"]:
+        if repo.name in submodules_content["submodules"]["excludes"]:
             return False
-        if repo.name in config_content["submodules"]["includes"]:
+        if repo.name in submodules_content["submodules"]["includes"]:
             return True
-        return len(config_content["submodules"]["includes"]) == 0
+        return len(submodules_content["submodules"]["includes"]) == 0
 
-    root_repo = git.Repo(config["root"])
-    start = root_repo.git.rev_parse(start_rev)
-    end = root_repo.git.rev_parse(end_rev)
-    # print(start, end, root_repo)
-    repo_logs_info = [{"start": start, "end": end, "path": "", "repo": root_repo}]
-    repo_walker(root_repo, start, end, "", repo_logs_info, is_includes_repo)
-    commits = []
-    collect_commits(repo_logs_info, commits, get_author_name)
-    commits.sort(key=lambda commit: commit.timestamp)
+    commits = collect_commits(git.Repo(config["root"]), start_rev, end_rev, get_author_name, is_includes_repo)
     full_log = u""
     authors = {}
     for commit in commits:
-        if authors.get(commit.email, None) is None:
-            authors[commit.email] = []
+        if dumped_authors is None:
+            collect_authors(commit, authors)
+        for log in commit.logs:
+            full_log += u"{}".format(log)
+    if dumped_authors is None:
+        dump_authors_(dumped_authors, authors)
 
-        if commit.author not in authors[commit.email]:
-            authors[commit.email].append(commit.author)
-        if not get_config_to:
-            for log in commit.logs:
-                full_log += u"{}".format(log)
-    if not get_config_to:
-        with codecs.open("gc.test.log", 'w', encoding='utf-8') as fl:
-            fl.write(full_log)
-            fl.close()
-    else:
-        create_config(config, get_config_to, authors)
+    if not dumped_log:
+        print(full_log)
+        dumped_log = get_default_files_path("log")
+
+    with codecs.open(check_files(dumped_log), 'w', encoding='utf-8') as fl:
+        fl.write(full_log)
+        fl.close()
 
 
 def history_repos_list(config, start_rev, end_rev, list_dst):
@@ -91,7 +95,7 @@ def history_repos_list(config, start_rev, end_rev, list_dst):
     for info in repo_logs_info:
         full_info_str += u"{start} {end} {repo_path}\r\n".format(repo_path=info["path"], start=info["start"], end=info["end"])
     if list_dst:
-        with codecs.open(list_dst, 'w', encoding='utf-8') as fl:
+        with codecs.open(check_files(list_dst), 'w', encoding='utf-8') as fl:
             fl.write(full_info_str)
             fl.close()
     else:
@@ -104,24 +108,82 @@ def collect_subs(config):
     return subs
 
 
-def create_config(config, config_dst, authors=None):
+def check_files(full_path):
+    if not os.path.exists(os.path.dirname(full_path)):
+        os.mkdir(os.path.basename(os.path.dirname(full_path)))
+    return full_path
+
+
+def dump_submodules(config, dumped_submodules):
     def unicode_representer(dumper, uni):
         node = yaml.ScalarNode(tag=u'tag:yaml.org,2002:str', value=u"{}".format(uni))
         return node
     yaml.add_representer(unicode, unicode_representer)
 
-    new_config = {"submodules": {"excludes": [], "includes": collect_subs(config)}, "authors": authors}
-    if config_dst:
-        with codecs.open(config_dst, 'w', encoding='utf-8') as cd:
+    new_config = {"submodules": {"excludes": [], "includes": collect_subs(config)}}
+    if dumped_submodules:
+        with codecs.open(check_files(dumped_submodules), 'w', encoding='utf-8') as cd:
             yaml.dump(new_config, cd, default_flow_style=False, allow_unicode=True)
     else:
         print(yaml.dump(new_config, default_flow_style=False))
 
 
+def dump_authors(config, dumped_authors, dumped_submodules, start_rev, end_rev):
+    def unicode_representer(dumper, uni):
+        node = yaml.ScalarNode(tag=u'tag:yaml.org,2002:str', value=u"{}".format(uni))
+        return node
+    yaml.add_representer(unicode, unicode_representer)
+
+    if dumped_submodules is None:
+        dumped_submodules = get_default_files_path("submodules")
+        dump_submodules(config, dumped_submodules)
+
+    with codecs.open(check_files(dumped_submodules), 'r', encoding='utf-8') as dumped_subs:
+        subs = yaml.safe_load(dumped_subs)
+        dumped_subs.close()
+
+    def is_includes_repo(repo):
+        if subs is None:
+            return True
+        if repo.name in subs["submodules"]["excludes"]:
+            return False
+        if repo.name in subs["submodules"]["includes"]:
+            return True
+        return len(subs["submodules"]["includes"]) == 0
+
+    def get_author_name(email, def_name):
+        return def_name
+
+    commits = collect_commits(git.Repo(config["root"]), start_rev, end_rev, get_author_name, is_includes_repo)
+    authors = {}
+    for commit in commits:
+        collect_authors(commit, authors)
+
+    dump_authors_(dumped_authors, authors)
+
+
+def collect_authors(commit, authors):
+    if authors.get(commit.email, None) is None:
+        authors[commit.email] = []
+
+    if commit.author not in authors[commit.email]:
+        authors[commit.email].append(commit.author)
+
+
+def dump_authors_(dumped_authors, authors):
+    new_config = {"authors": authors}
+    if not dumped_authors:
+        print(yaml.dump(new_config, default_flow_style=False))
+        dumped_authors = get_default_files_path("authors")
+
+    with codecs.open(check_files(dumped_authors), 'w', encoding='utf-8') as da:
+        yaml.dump(new_config, da, default_flow_style=False, allow_unicode=True)
+
+
 def repo_walker(repo, start, end, start_path, repo_logs_info, is_includes_repo):
     for sub in repo.submodules:
         if not is_includes_repo(sub):
-            return
+            continue
         path = u"{0}/{1}".format(start_path, sub.path)
         start_sub, end_sub = get_log_range(repo, sub.path, start, end)
         repo_logs_info.append({"start": start_sub, "end": end_sub, "path": path, "repo": sub.module()})
@@ -134,7 +196,51 @@ def get_log_range(repo, path, start, end):
     return start_sub, end_sub
 
 
-def collect_commits(repo_logs_info, commits, get_author_name):
+def collect_commits(root_repo, start_rev, end_rev, get_author_name, is_includes_repo):
+    start = root_repo.git.rev_parse(start_rev)
+    end = root_repo.git.rev_parse(end_rev)
+    # print(start, end, os.path.basename(root_repo.working_dir))
+    repo_logs_info = [{"start": start, "end": end, "path": os.path.basename(root_repo.working_dir), "repo": root_repo}]
+    repo_walker(root_repo, start, end, repo_logs_info[0]["path"], repo_logs_info, is_includes_repo)
+    commits = []
     for info in repo_logs_info:
         tmp_commits = list(info["repo"].iter_commits('{0}..{1}'.format(info["start"], info["end"])))
         commits.extend([CommitInfo(commit, info["path"], get_author_name) for commit in tmp_commits])
+    commits.sort(key=lambda commit: commit.timestamp)
+    return commits
+
+
+def dump_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
+    if dumped_log is None:
+        dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
+        dumped_log = get_default_files_path("log")
+    if os.path.exists(dumped_log):
+        dumped_config = dumped_config or get_default_files_path("gource_config")
+        dump_gource_config(dumped_config, dumped_log)
+        os.system('gource --load-config {config} --log-format custom {log_name}'
+                  .format(log_name=dumped_log, config=dumped_config))
+
+
+def show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
+    if dumped_log is None:
+        dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
+        dumped_log = get_default_files_path("log")
+    if os.path.exists(dumped_log):
+        dumped_config = dumped_config or get_default_files_path("gource_config")
+        dump_gource_config(dumped_config, dumped_log)
+        os.system('gource --load-config {config} --log-format custom {log_name}'
+                  .format(log_name=dumped_log, config=dumped_config))
+
+
+def dump_gource_config(gource_config, dumped_log):
+    g_config = open(check_files(gource_config), 'w')
+    g_config.write('[gource]\n')
+    g_config.write('  path={log}\n'.format(log=dumped_log))
+    g_config.write('  seconds-per-day=0.5\n')
+    g_config.write('  file-idle-time=0.01\n')
+    g_config.write('  auto-skip-seconds=1\n')
+    g_config.write('  viewport=1920x1280\n')
+    g_config.write('  font-size=10\n')
+    g_config.write('  title="titles"\n')
+    g_config.write('  hide=date,filenames,dirnames,mouse,progress\n')
+    g_config.close()

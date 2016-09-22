@@ -42,28 +42,35 @@ def pythorce(ctx, verbose, root):
 
 
 # commands
-@pythorce.command(name="collect-submodules", help=_('''
+
+@pythorce.command(name="show-magic", help=_('''
     ...later...
     '''))
+@click.option('--start-rev', '-sr', nargs=1)
+@click.option('--end-rev', '-er', default="HEAD")
+@click.option('--dumped-authors', '-da', help='...later', default=None)
+@click.option('--dumped-submodules', '-ds', help='...later', default=None)
+@click.option('--dumped-log', '-dl', help='...later', default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def collect_subs(config):
-    from scm import collect_subs
-    collect_subs(config)
+def show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
+    from scm import show_magic
+    show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
 
 
-@pythorce.command(name="generator", help=_('''
+@pythorce.command(name="dump-log", help=_('''
     ...later...
     '''))
 @click.argument('start', nargs=1)
 @click.argument('end', default="HEAD")
-@click.option('--get-config-to', '-gct', help='...later', default=None)
-@click.option('--get-config-from', '-gcf', help='...later', default=None)
+@click.option('--dumped-authors', '-da', help='...later', default=None)
+@click.option('--dumped-submodules', '-ds', help='...later', default=None)
+@click.option('--dumped-log', '-dl', help='...later', default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def generator(config, start, end, get_config_to, get_config_from):
-    from scm import generator
-    generator(config, start, end, get_config_to, get_config_from)
+def dump_log(config, start, end, dumped_authors, dumped_submodules, dumped_log):
+    from scm import dump_log
+    dump_log(config, start, end, dumped_authors, dumped_submodules, dumped_log)
 
 
 @pythorce.command(name="history-repos-list", help=_('''
@@ -79,15 +86,38 @@ def history_repos_list(config, start, end, list_dst):
     history_repos_list(config, start, end, list_dst)
 
 
-@pythorce.command(name="create-config", help=_('''
-    ...later...
+@pythorce.command(name="dump-submodules", help=_('''
+    Collect all submodules in repo, and write in file(--config-dst || -cd) or print part configs: allinclusive
     '''))
-@click.option('--config-dst', '-cd', help=_('file to save config'), default=None)
+@click.option('--dumped-submodules', '-ds', default=None,
+              help=_('file to save allinclusive'))
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def create_config(config, config_dst):
-    from scm import create_config
-    create_config(config, config_dst)
+def dump_submodules(config, dumped_submodules):
+    from scm import dump_submodules
+    dump_submodules(config, dumped_submodules)
+
+
+@pythorce.command(name="dump-authors", help=_('''
+    Collect all authors commit in all repos (or from file after command collect_submodules)
+    '''))
+@click.argument('start', nargs=1)
+@click.argument('end', default="HEAD")
+@click.option('--dumped-authors', '-da', help=_('file to save authors list'), default=None)
+@click.option('--dumped-submodules', '-ds', help=_('dumped submodules'), default=None)
+@click.help_option('--help', '-h', help=_('Show this message and exit.'))
+@click.pass_obj
+def dump_authors(config, dumped_authors, dumped_submodules, start, end):
+    from scm import dump_authors
+    dump_authors(config, dumped_authors, dumped_submodules, start, end)
+
+
+@pythorce.command(name="dump-gource-config", help=_('''
+    defautl config for gource
+    '''))
+def dump_gource_config():
+    from scm import dump_gource_config
+    dump_gource_config()
 
 
 @pythorce.command(help=_('''
@@ -109,29 +139,30 @@ def help(ctx, command_name):
 def setup_logger(log_level=logging.INFO):
     logging.getLogger().setLevel(logging.DEBUG)
 
-    class ClickStreamHandler(logging.StreamHandler):
-        def emit(self, record):
-            try:
-                click.echo(self.format(record), file=self.stream)
-                self.flush()
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except:
-                self.handleError(record)
-
-    stream_handler = ClickStreamHandler()
-    stream_handler.setLevel(log_level)
-    logging.getLogger().addHandler(stream_handler)
+    # class ClickStreamHandler(logging.StreamHandler):
+    #     def emit(self, record):
+    #         try:
+    #             click.echo(self.format(record), file=self.stream)
+    #             self.flush()
+    #         except (KeyboardInterrupt, SystemExit):
+    #             raise
+    #         except:
+    #             self.handleError(record)
+    #
+    # stream_handler = ClickStreamHandler()
+    # stream_handler.setLevel(log_level)
+    # logging.getLogger().addHandler(stream_handler)
 
 
 def main():
-    try:
-        pythorce()
-    except Exception as e:
-        print(u"args: {}".format(e.args))
-        print(u"message: {}".format(e.message))
-        print(u'Operation failed')
-        return 1
+    # try:
+
+    pythorce()
+    # except Exception as e:
+    #     print(u"args: {}".format(e.args))
+    #     print(u"message: {}".format(e.message))
+    #     print(u'Operation failed')
+    #     return 1
 
 
 if __name__ == '__main__':
