@@ -11,6 +11,8 @@ import click
 import gettext
 import platform
 
+import scm
+
 
 if platform.system().lower() == 'windows':
     import locale
@@ -43,7 +45,7 @@ def pythorce(ctx, verbose, root):
 
 # commands
 
-@pythorce.command(name="show-magic", help=_('''
+@pythorce.command(name="show", help=_('''
     ...later...
     '''))
 @click.option('--start-rev', '-sr', nargs=1)
@@ -53,9 +55,8 @@ def pythorce(ctx, verbose, root):
 @click.option('--dumped-log', '-dl', help='...later', default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
-    from scm import show_magic
-    show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
+def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
+    scm.show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
 
 
 @pythorce.command(name="dump-log", help=_('''
@@ -69,21 +70,19 @@ def show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, du
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
 def dump_log(config, start, end, dumped_authors, dumped_submodules, dumped_log):
-    from scm import dump_log
-    dump_log(config, start, end, dumped_authors, dumped_submodules, dumped_log)
+    scm.dump_log(config, start, end, dumped_authors, dumped_submodules, dumped_log)
 
 
 @pythorce.command(name="history-repos-list", help=_('''
     ...later...
     '''))
-@click.argument('start', nargs=1)
-@click.argument('end', default="HEAD")
+@click.option('--start-rev', '-sr')
+@click.option('--end-rev', '-er', default="HEAD")
 @click.option('--list-dst', '-ld', help=_('file to save info'), default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def history_repos_list(config, start, end, list_dst):
-    from scm import history_repos_list
-    history_repos_list(config, start, end, list_dst)
+def history_repos_list(config, start_rev, end_rev, list_dst):
+    scm.history_repos_list(config, start_rev, end_rev, list_dst)
 
 
 @pythorce.command(name="dump-submodules", help=_('''
@@ -94,8 +93,7 @@ def history_repos_list(config, start, end, list_dst):
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
 def dump_submodules(config, dumped_submodules):
-    from scm import dump_submodules
-    dump_submodules(config, dumped_submodules)
+    scm.dump_submodules(config, dumped_submodules)
 
 
 @pythorce.command(name="dump-authors", help=_('''
@@ -108,16 +106,14 @@ def dump_submodules(config, dumped_submodules):
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
 def dump_authors(config, dumped_authors, dumped_submodules, start, end):
-    from scm import dump_authors
-    dump_authors(config, dumped_authors, dumped_submodules, start, end)
+    scm.dump_authors(config, dumped_authors, dumped_submodules, start, end)
 
 
 @pythorce.command(name="dump-gource-config", help=_('''
     defautl config for gource
     '''))
 def dump_gource_config():
-    from scm import dump_gource_config
-    dump_gource_config()
+    scm.dump_gource_config()
 
 
 @pythorce.command(help=_('''

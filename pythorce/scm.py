@@ -87,11 +87,12 @@ def dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dump
 
 def history_repos_list(config, start_rev, end_rev, list_dst):
     root_repo = git.Repo(config["root"])
-    start = root_repo.git.rev_parse(start_rev)
-    end = root_repo.git.rev_parse(end_rev)
+    start = root_repo.git.rev_parse(start_rev) or get_first_commit(root_repo)
+    end = root_repo.git.rev_parse(end_rev or "HEAD")
     repo_logs_info = [{"start": start, "end": end, "path": "", "repo": root_repo}]
     repo_walker(root_repo, start, end, "", repo_logs_info, lambda repo: True)
     full_info_str = ""
+    print(repo_logs_info)
     for info in repo_logs_info:
         full_info_str += u"{start} {end} {repo_path}\r\n".format(repo_path=info["path"], start=info["start"], end=info["end"])
     if list_dst:
@@ -185,21 +186,37 @@ def repo_walker(repo, start, end, start_path, repo_logs_info, is_includes_repo):
         if not is_includes_repo(sub):
             continue
         path = u"{0}/{1}".format(start_path, sub.path)
-        start_sub, end_sub = get_log_range(repo, sub.path, start, end)
+        start_sub, end_sub = get_log_range(repo, sub, start, end)
         repo_logs_info.append({"start": start_sub, "end": end_sub, "path": path, "repo": sub.module()})
         repo_walker(sub.module(), start_sub, end_sub, path, repo_logs_info, is_includes_repo)
 
 
-def get_log_range(repo, path, start, end):
-    start_sub = repo.git.ls_tree(start, path).split(" ")[2].split("\t")[0]
-    end_sub = repo.git.ls_tree(end, path).split(" ")[2].split("\t")[0]
+def get_log_range(repo, sub, start, end):
+    try:
+        ls_tree = repo.git.ls_tree(start, sub.path).split(" ")
+    except git.exc.GitCommandError:
+        ls_tree = [u""]
+        pass
+    if ls_tree != [u""]:
+        start_sub = ls_tree[2].split("\t")[0]
+    else:
+        start_sub = get_first_commit(sub.module())
+    ls_tree = repo.git.ls_tree(end, sub.path).split(" ")
+    if ls_tree != [u""]:
+        end_sub = ls_tree[2].split("\t")[0]
+    else:
+        end_sub = sub.module().rev_parse("HEAD")
     return start_sub, end_sub
+
+
+def get_first_commit(repo):
+    # rev-list --max-parents=0 HEAD
+    return repo.git.rev_list("HEAD", "-1", max_parents=0)
 
 
 def collect_commits(root_repo, start_rev, end_rev, get_author_name, is_includes_repo):
     start = root_repo.git.rev_parse(start_rev)
     end = root_repo.git.rev_parse(end_rev)
-    # print(start, end, os.path.basename(root_repo.working_dir))
     repo_logs_info = [{"start": start, "end": end, "path": os.path.basename(root_repo.working_dir), "repo": root_repo}]
     repo_walker(root_repo, start, end, repo_logs_info[0]["path"], repo_logs_info, is_includes_repo)
     commits = []
@@ -210,18 +227,7 @@ def collect_commits(root_repo, start_rev, end_rev, get_author_name, is_includes_
     return commits
 
 
-def dump_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
-    if dumped_log is None:
-        dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
-        dumped_log = get_default_files_path("log")
-    if os.path.exists(dumped_log):
-        dumped_config = dumped_config or get_default_files_path("gource_config")
-        dump_gource_config(dumped_config, dumped_log)
-        os.system('gource --load-config {config} --log-format custom {log_name}'
-                  .format(log_name=dumped_log, config=dumped_config))
-
-
-def show_magic(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
+def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
     if dumped_log is None:
         dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
         dumped_log = get_default_files_path("log")
