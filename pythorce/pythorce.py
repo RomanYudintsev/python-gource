@@ -53,10 +53,23 @@ def pythorce(ctx, verbose, root):
 @click.option('--dumped-authors', '-da', help='...later', default=None)
 @click.option('--dumped-submodules', '-ds', help='...later', default=None)
 @click.option('--dumped-log', '-dl', help='...later', default=None)
+@click.option('--dumped-config', '-dc', help='...later', default=None)
 @click.help_option('--help', '-h', help=_('Show this message and exit.'))
 @click.pass_obj
-def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
-    scm.show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
+def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config):
+    scm.show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config)
+
+
+@pythorce.command(name="dump-video", help=_('''
+    ...later...
+    '''))
+@click.option('--dumped-config', '-dc', help='...later', default=None)
+@click.option('--video-name', '-vn', help='...later', default=None)
+@click.option('--dumped-ffmpeg-config', '-dfc', help='...later', default=None)
+@click.help_option('--help', '-h', help=_('Show this message and exit.'))
+@click.pass_obj
+def dump_video(config, dumped_config, video_name, dumped_ffmpeg_config):
+    scm.dump_video(dumped_config, video_name, dumped_ffmpeg_config)
 
 
 @pythorce.command(name="dump-log", help=_('''

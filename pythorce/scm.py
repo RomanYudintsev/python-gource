@@ -227,15 +227,29 @@ def collect_commits(root_repo, start_rev, end_rev, get_author_name, is_includes_
     return commits
 
 
-def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config=None):
-    if dumped_log is None:
-        dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
-        dumped_log = get_default_files_path("log")
-    if os.path.exists(dumped_log):
-        dumped_config = dumped_config or get_default_files_path("gource_config")
+def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log, dumped_config):
+    if dumped_config is None:
+        if dumped_log is None:
+            dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log)
+            dumped_log = get_default_files_path("log")
+        dumped_config = get_default_files_path("gource_config")
         dump_gource_config(dumped_config, dumped_log)
-        os.system('gource --load-config {config} --log-format custom {log_name}'
-                  .format(log_name=dumped_log, config=dumped_config))
+    os.system('gource --load-config {config}'.format(config=dumped_config))
+
+
+def dump_video(dumped_config, video_name=None, dumped_ffmpeg_config=None, with_audio=None):
+    ppm_file = get_default_files_path("ppm")
+    video_file = get_default_files_path("video") if video_name is None else video_name
+    os.system('gource --load-config {config} --output-ppm-stream {ppm_file}'
+              .format(config=dumped_config, ppm_file=ppm_file))
+    if dumped_ffmpeg_config is None:
+        dumped_ffmpeg_config = get_default_files_path("ffmpeg_config")
+        dump_ffmpeg_config(dumped_ffmpeg_config, ppm_file, video_file)
+
+    with open(check_files(dumped_ffmpeg_config)) as ffmeg_config:
+        command = u'ffmpeg {audio}{config}'.format(config=ffmeg_config.read(), audio=(with_audio+' ') if with_audio is not None else "")
+        print("full command:: ", command)
+        os.system(command)
 
 
 def dump_gource_config(gource_config, dumped_log):
@@ -247,6 +261,14 @@ def dump_gource_config(gource_config, dumped_log):
     g_config.write('  auto-skip-seconds=1\n')
     g_config.write('  viewport=1920x1280\n')
     g_config.write('  font-size=10\n')
-    g_config.write('  title="titles"\n')
-    g_config.write('  hide=date,filenames,dirnames,mouse,progress\n')
+    g_config.write('  title="change me in .python/tmp_gource_config.dump"\n')
+    g_config.write('  hide=filenames,dirnames,\n')
+    g_config.close()
+
+
+def dump_ffmpeg_config(ffmped_config, ppm_file, video_file):
+    g_config = open(check_files(ffmped_config), 'w')
+    g_config.write('-y -r 60 -f image2pipe -vcodec ppm -i {ppm_file} -vcodec libx264 -preset ultrafast '
+                   '-pix_fmt yuv420p -crf 1 -threads 0 -bf 0 {video_file}.avi'
+                   .format(ppm_file=ppm_file, video_file=video_file))
     g_config.close()
