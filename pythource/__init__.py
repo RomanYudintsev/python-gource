@@ -1,6 +1,6 @@
-import pythorce
+import pythource
 
 
 def main():
     """Entry point for the application script"""
-    pythorce.main()
+    pythource.main()

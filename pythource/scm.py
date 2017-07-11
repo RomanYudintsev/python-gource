@@ -29,7 +29,7 @@ class CommitInfo(object):
 
 
 def get_default_files_path(part_name):
-    return os.path.join(".pythorce", "tmp_{}.dump".format(part_name))
+    return os.path.join(".pythource", "tmp_{}.dump".format(part_name))
 
 
 def dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_log):
@@ -51,7 +51,9 @@ def dump_log(config, start_rev, end_rev, dumped_authors, dumped_submodules, dump
             return def_name
         new_name = authors_content["authors"][email][0]
         try:
-            new_name = authors_content(new_name, def_name)
+            new_new_name = get_author_name(new_name, def_name)
+            if new_new_name != def_name:
+                new_name = new_new_name
         except Exception:
             pass
         return new_name
@@ -234,6 +236,7 @@ def show(config, start_rev, end_rev, dumped_authors, dumped_submodules, dumped_l
             dumped_log = get_default_files_path("log")
         dumped_config = get_default_files_path("gource_config")
         dump_gource_config(dumped_config, dumped_log)
+
     os.system('gource --load-config {config}'.format(config=dumped_config))
 
 
@@ -255,14 +258,14 @@ def dump_video(dumped_config, video_name=None, dumped_ffmpeg_config=None, with_a
 def dump_gource_config(gource_config, dumped_log):
     g_config = open(check_files(gource_config), 'w')
     g_config.write('[gource]\n')
-    g_config.write('  path={log}\n'.format(log=dumped_log))
-    g_config.write('  seconds-per-day=0.5\n')
-    g_config.write('  file-idle-time=0.01\n')
-    g_config.write('  auto-skip-seconds=1\n')
-    g_config.write('  viewport=1920x1280\n')
-    g_config.write('  font-size=10\n')
-    g_config.write('  title="change me in .python/tmp_gource_config.dump"\n')
-    g_config.write('  hide=filenames,dirnames,\n')
+    g_config.write('    seconds-per-day=0.5\n')
+    g_config.write('    file-idle-time=0.01\n')
+    g_config.write('    auto-skip-seconds=1\n')
+    g_config.write('    viewport=1920x1280\n')
+    g_config.write('    font-size=10\n')
+    g_config.write('    title="change me in .python/tmp_gource_config.dump"\n')
+    g_config.write('    hide=filenames,dirnames,\n')
+    g_config.write('    path={log}'.format(log=dumped_log))
     g_config.close()
 
 
@@ -272,3 +275,13 @@ def dump_ffmpeg_config(ffmped_config, ppm_file, video_file):
                    '-pix_fmt yuv420p -crf 1 -threads 0 -bf 0 {video_file}.avi'
                    .format(ppm_file=ppm_file, video_file=video_file))
     g_config.close()
+
+
+def load_config_to_string(path_file_config):
+    str_config = ''
+    with codecs.open(path_file_config, 'r', encoding='utf-8') as config:
+        for line in config:
+            print(line)
+
+            str_config = '{start} {end}'.format(start=str_config, end=line.replace("\r\n", ""))
+    return str_config
